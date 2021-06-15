@@ -10,7 +10,12 @@ wb = Wallabag(
     client_secret="5l0mm1c6ggkc4o0swwwcokggwg4kw4cs8wkgoog00g8888wwwg"
 )
 
-wb.refresh_token()
 wb.get_entries()
+
 time.sleep(3610)
+
+print("REFRESH")
+
 wb.get_entries()
+
+print("DONE")

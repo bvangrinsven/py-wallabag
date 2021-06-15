@@ -6,9 +6,17 @@ from requests.exceptions import BaseHTTPError
 
 
 class Wallabag:
-    BASE_URL = "https://app.wallabag.it"
+    def __init__(self, host, username, password, client_id, client_secret, get_access_token=False):
+        """Wallabag API interface
 
-    def __init__(self, host, username, password, client_id, client_secret):
+        :param host: wallabag instance url
+        :param username: username
+        :param password: password
+        :param client_id: client id
+        :param client_secret: client secret
+        :param get_access_token: if True, the client access token will be fetched when the istance is initialized.
+        Otherwise, it will be fecthed when the first request is fired
+        """
         self._host = host
         self._username = username
         self._password = password
@@ -17,11 +25,14 @@ class Wallabag:
 
         self._access_token = None
         self._refresh_token = None
-        self._access_token_expires_at = None
+        self._access_token_expires_at = datetime.datetime.utcnow()  # trigger token refresh at the first request
 
         self._requests_session = requests.Session()
 
-    def query(self, path, method="get", payload=None, skip_access_token_refresh=False):
+        if get_access_token:
+            self._refresh_access_token()
+
+    def query(self, path, method, payload=None, skip_access_token_refresh=False):
         method = method.lower()
         if not path.startswith("/"):
             path = f"/{path}"
@@ -30,10 +41,12 @@ class Wallabag:
         payload = payload or {}
 
         # only set Bearer header if we have an access token
-        headers = {'Authorization': 'Bearer ' + self._access_token} if self._access_token else {}
+        # no need to do this because the "Authorization" header is set at session level
+        # headers = {'Authorization': 'Bearer ' + self._access_token} if self._access_token else {}
+        headers = {}
 
         if not skip_access_token_refresh and datetime.datetime.utcnow() > self._access_token_expires_at:
-            self.refresh_token()
+            self._refresh_access_token()
 
         if method == "get":
             response = self._requests_session.get(url, params=payload, headers=headers)
@@ -54,7 +67,7 @@ class Wallabag:
             response_dict = response.json()
             return response_dict
 
-    def refresh_token(self):
+    def _refresh_access_token(self):
         path = "/oauth/v2/token"
 
         payload = dict(
@@ -69,6 +82,10 @@ class Wallabag:
 
         self._access_token = response_dict["access_token"]
         self._refresh_token = response_dict["refresh_token"]
+
+        # these headers are kept for the whole session's life
+        # sending a request with a new "headers" dict will add the keys to "Authorization"
+        self._requests_session.headers.update({"Authorization": "Bearer " + self._access_token})
 
         self._access_token_expires_at = datetime.datetime.utcnow() + datetime.timedelta(0, response_dict["expires_in"])
 
