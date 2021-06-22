@@ -103,3 +103,19 @@ class Wallabag:
         # print(response_dict["_embedded"]["items"][0])
         print(json.dumps(response_dict["_embedded"]["items"][0], indent=2))
 
+    def save_enrty(self, url: str, tags: [None, list] = None):
+        path = "/api/entries.json"
+
+        if tags:
+            tags = ",".join(tags)
+
+        payload = dict(
+            url=url,
+            tags=tags
+        )
+
+        response_dict = self.query(path, "post", payload=payload)
+
+        return response_dict
+
+
