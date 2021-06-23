@@ -34,8 +34,8 @@ class Wallabag:
 
         self._requests_session = requests.Session()
 
-        self._handle_access_token_refreshes = handle_access_token_refreshes
-        if self._handle_access_token_refreshes:
+        self.auto_access_token_refresh = handle_access_token_refreshes
+        if self.auto_access_token_refresh:
             self._refresh_access_token()
 
     def query(self, path, method, payload=None, skip_access_token_refresh=False):
@@ -51,7 +51,7 @@ class Wallabag:
         # headers = {'Authorization': 'Bearer ' + self._access_token} if self._access_token else {}
         headers = {}
 
-        if not skip_access_token_refresh and self._handle_access_token_refreshes and datetime.datetime.utcnow() > self._access_token_expires_at:
+        if not skip_access_token_refresh and self.auto_access_token_refresh and datetime.datetime.utcnow() >= self._access_token_expires_at:
             self._refresh_access_token()
 
         if method == "get":
