@@ -1,12 +1,16 @@
 import datetime
 import json
+from typing import Union, Optional
 
+import pytz
 import requests
 from requests.exceptions import BaseHTTPError
 
+from datetime_helpers import to_timestamp
+
 
 class Wallabag:
-    def __init__(self, host, username, password, client_id, client_secret, get_access_token=False):
+    def __init__(self, host, username, password, client_id, client_secret, handle_access_token_refreshes=True):
         """Wallabag API interface
 
         :param host: wallabag instance url
@@ -14,8 +18,7 @@ class Wallabag:
         :param password: password
         :param client_id: client id
         :param client_secret: client secret
-        :param get_access_token: if True, the client access token will be fetched when the istance is initialized.
-        Otherwise, it will be fecthed when the first request is fired
+        :param handle_access_token_refreshes:
         """
         self._host = host
         self._username = username
@@ -23,13 +26,16 @@ class Wallabag:
         self._client_id = client_id
         self._client_secret = client_secret
 
+        self._tzinfo: pytz.BaseTzInfo = pytz.utc
+
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = datetime.datetime.utcnow()  # trigger token refresh at the first request
 
         self._requests_session = requests.Session()
 
-        if get_access_token:
+        self._handle_access_token_refreshes = handle_access_token_refreshes
+        if self._handle_access_token_refreshes:
             self._refresh_access_token()
 
     def query(self, path, method, payload=None, skip_access_token_refresh=False):
@@ -45,7 +51,7 @@ class Wallabag:
         # headers = {'Authorization': 'Bearer ' + self._access_token} if self._access_token else {}
         headers = {}
 
-        if not skip_access_token_refresh and datetime.datetime.utcnow() > self._access_token_expires_at:
+        if not skip_access_token_refresh and self._handle_access_token_refreshes and datetime.datetime.utcnow() > self._access_token_expires_at:
             self._refresh_access_token()
 
         if method == "get":
@@ -103,18 +109,96 @@ class Wallabag:
         # print(response_dict["_embedded"]["items"][0])
         print(json.dumps(response_dict["_embedded"]["items"][0], indent=2))
 
-    def save_enrty(self, url: str, tags: [None, list] = None):
-        path = "/api/entries.json"
+    def _build_entry_payload(
+        self,
+        title: Union[None, str] = None,
+        tags: Union[None, list] = None,
+        archive: Union[None, bool] = None,
+        starred: Union[None, bool] = None,
+        content: Union[None, str] = None,
+        language: Union[None, str] = None,
+        preview_picture: [None, str] = None,
+        published_at: Union[int, datetime.datetime] = None,
+        authors: Union[None, list] = None,
+        public: Union[None, bool] = None,
+        origin_url: Union[None, str] = None
+    ):
+        if content is not None and title is None:
+            raise ValueError("if `content` is provided, `title` must be non-empty")
 
         if tags:
             tags = ",".join(tags)
+        if authors:
+            authors = ",".join(authors)
+        if published_at is not None:
+            if isinstance(published_at, datetime.datetime):
+                published_at = to_timestamp(
+                    published_at, tzinfo=self._tzinfo if self._tzinfo else None
+                )
 
         payload = dict(
-            url=url,
-            tags=tags
+            title=title,
+            tags=tags,
+            archive=int(archive) if archive is not None else None,
+            starred=int(starred) if starred is not None else None,
+            content=content,
+            language=language,
+            preview_picture=preview_picture,
+            published_at=published_at,
+            authors=authors,
+            public=int(public) if public is not None else None,
+            origin_url=origin_url
         )
 
+        return payload
+
+    def save_entry(
+        self,
+        url: str,
+        title: Union[None, str] = None,
+        tags: Union[None, list] = None,
+        archive: Union[None, bool] = None,
+        starred: Union[None, bool] = None,
+        content: Union[None, str] = None,
+        language: Union[None, str] = None,
+        preview_picture: [None, str] = None,
+        published_at: Union[None, int, datetime.datetime] = None,
+        authors: Union[None, list] = None,
+        public: Union[None, bool] = None,
+        origin_url: Union[None, str] = None
+    ):
+        path = "/api/entries.json"
+
+        payload = self._build_entry_payload(title, tags, archive, starred, content, language, preview_picture,
+                                            published_at, authors, public, origin_url)
+
+        payload["url"] = url
+
         response_dict = self.query(path, "post", payload=payload)
+
+        return response_dict
+
+    def edit_entry(
+        self,
+        entry_id: int,
+        title: Union[None, str] = None,
+        tags: Union[None, list] = None,
+        archive: Union[None, bool] = None,
+        starred: Union[None, bool] = None,
+        content: Union[None, str] = None,
+        language: Union[None, str] = None,
+        preview_picture: [None, str] = None,
+        published_at: Union[int, datetime.datetime] = None,
+        authors: Union[None, list] = None,
+        public: Union[None, bool] = None,
+        origin_url: Union[None, str] = None
+    ):
+        path = f"/api/entries/{entry_id}.json"
+
+        payload = self._build_entry_payload(title, tags, archive, starred, content, language, preview_picture,
+                                            published_at, authors, public, origin_url)
+
+        response_dict = self.query(path, "patch", payload=payload)
 
         return response_dict
 
