@@ -369,4 +369,4 @@ class Entry:
             origin_url=self.origin_url
         )
 
-        print(result_dict)
+        self = self.from_dict(result_dict, wallabag_instance=self._wb)

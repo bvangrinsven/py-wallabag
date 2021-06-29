@@ -17,6 +17,10 @@ entry: Entry = wb.save_entry(
     tags=["wallabag bot"],
     published_at=datetime.datetime.now()
 )
+entry.pprint()
+entry.tags = ["lmao"]
+entry.update()
+print(entry.updated_at)
 # wb.edit_entry(13260773, starred=False)
 entry.pprint()
 sys.exit(1)
