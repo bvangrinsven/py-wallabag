@@ -203,3 +203,110 @@ class Wallabag:
         return response_dict
 
 
+class Entry:
+    __slots__ = [
+        "_wb",
+        "entry_id",
+        "url",
+        "title",
+        "tags",
+        "archive",
+        "starred",
+        "content",
+        "language",
+        "preview_picture",
+        "published_at",
+        "authors",
+        "public",
+        "origin_url"
+    ]
+
+    def __init__(
+            self,
+            wallabag_instance: Wallabag,
+            entry_id: int,
+            url: str,
+            title: Union[None, str] = None,
+            tags: Union[None, str, list] = None,
+            archive: Union[None, bool] = None,
+            starred: Union[None, bool] = None,
+            content: Union[None, str] = None,
+            language: Union[None, str] = None,
+            preview_picture: [None, str] = None,
+            published_at: Union[None, int, datetime.datetime] = None,
+            authors: Union[None, str, list] = None,
+            public: Union[None, bool] = None,
+            origin_url: Union[None, str] = None
+    ):
+        self._wb = wallabag_instance
+        self.entry_id = entry_id
+        self.url = url
+        self.title = title
+        self.tags = tags
+        self.archive = archive if isinstance(archive, bool) else bool(archive)
+        self.starred = starred if isinstance(starred, bool) else bool(starred),
+        self.content = content
+        self.language = language
+        self.preview_picture = preview_picture
+        self.published_at = published_at
+        self.authors = authors
+        self.public = public if isinstance(public, bool) else bool(public)
+        self.origin_url = origin_url
+
+        if self.published_at is not None:
+            if isinstance(self.published_at, datetime.datetime):
+                self.published_at = to_timestamp(
+                    published_at, tzinfo=self._wb._tzinfo if self._wb._tzinfo else None
+                )
+
+        if isinstance(self.tags, str):
+            if "," in self.tags:
+                self.tags = self.tags.split(",")
+            else:
+                self.tags = [self.tags]
+
+        if isinstance(self.authors, str):
+            if "," in self.authors:
+                self.authors = self.authors.split(",")
+            else:
+                self.authors = [self.authors]
+
+    @classmethod
+    def from_dict(cls, entry_dict: dict):
+        return cls(**entry_dict)
+
+    def as_dict(self):
+        return dict(
+            entry_id=self.entry_id,
+            url=self.url,
+            title=self.title,
+            tags=self.tags,
+            archive=self.archive,
+            starred=self.starred,
+            content=self.content,
+            language=self.language,
+            preview_picture=self.preview_picture,
+            published_at=self.published_at,
+            authors=self.authors,
+            public=self.public,
+            origin_url=self.origin_url
+        )
+
+    def __str__(self):
+        return f"Entry<{self.entry_id}>"
+
+    def update(self):
+        self._wb.edit_entry(
+            self.entry_id,
+            title=self.title,
+            tags=self.tags,
+            archive=self.archive,
+            starred=self.starred,
+            content=self.content,
+            language=self.language,
+            preview_picture=self.preview_picture,
+            published_at=self.published_at,
+            authors=self.authors,
+            public=self.public,
+            origin_url=self.origin_url
+        )
