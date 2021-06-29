@@ -2,7 +2,7 @@ import datetime
 import sys
 import time
 
-from wallabag import Wallabag
+from wallabag import Wallabag, Entry
 
 wb = Wallabag(
     host="https://app.wallabag.it",
@@ -12,12 +12,13 @@ wb = Wallabag(
     client_secret="5l0mm1c6ggkc4o0swwwcokggwg4kw4cs8wkgoog00g8888wwwg"
 )
 
-wb.save_entry(
+entry: Entry = wb.save_entry(
     url="https://www.fanpage.it/sport/calcio/la-uefa-dice-no-lallianz-arena-non-silluminera-con-i-colori-della-bandiera-arcobaleno/",
     tags=["wallabag bot"],
     published_at=datetime.datetime.now()
 )
 # wb.edit_entry(13260773, starred=False)
+entry.pprint()
 sys.exit(1)
 
 wb.get_entries()

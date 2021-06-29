@@ -176,7 +176,9 @@ class Wallabag:
 
         response_dict = self.query(path, "post", payload=payload)
 
-        return response_dict
+        import pprint
+        pprint.pprint(response_dict)
+        return Entry.from_dict(response_dict, wallabag_instance=self)
 
     def edit_entry(
         self,
@@ -210,15 +212,36 @@ class Entry:
         "url",
         "title",
         "tags",
-        "archive",
-        "starred",
+        "is_archived",
+        "is_starred",
         "content",
         "language",
         "preview_picture",
         "published_at",
-        "authors",
-        "public",
-        "origin_url"
+        "published_by",
+        "is_public",
+        "origin_url",
+        "annotations",
+        "created_at",
+        "archived_at",
+        "starred_at",
+        "updated_at",
+        "domain_name",
+        "given_url",
+        "hashed_given_url",
+        "hashed_url",
+        "reading_time"
+    ]
+
+    PORPERTIES_TO_STRIP = [
+        "uid",
+        "user_id",
+        "user_email",
+        "user_name",
+        "headers",
+        "http_status",
+        "mimetype",
+        "_links"
     ]
 
     def __init__(
@@ -228,36 +251,50 @@ class Entry:
             url: str,
             title: Union[None, str] = None,
             tags: Union[None, str, list] = None,
-            archive: Union[None, bool] = None,
-            starred: Union[None, bool] = None,
+            is_archived: Union[None, bool] = None,
+            is_starred: Union[None, bool] = None,
             content: Union[None, str] = None,
             language: Union[None, str] = None,
             preview_picture: [None, str] = None,
             published_at: Union[None, int, datetime.datetime] = None,
-            authors: Union[None, str, list] = None,
-            public: Union[None, bool] = None,
-            origin_url: Union[None, str] = None
+            published_by: Union[None, str, list] = None,
+            is_public: Union[None, bool] = None,
+            origin_url: Union[None, str] = None,
+            annotations: Union[None, list] = None,
+            created_at: Union[None, int, datetime.datetime] = None,
+            archived_at: Union[None, int, datetime.datetime] = None,
+            starred_at: Union[None, int, datetime.datetime] = None,
+            updated_at: Union[None, int, datetime.datetime] = None,
+            domain_name: Union[None, str] = None,
+            given_url: Union[None, str] = None,
+            hashed_given_url: Union[None, str] = None,
+            hashed_url: Union[None, str] = None,
+            reading_time: Union[None, int] = None,
     ):
         self._wb = wallabag_instance
         self.entry_id = entry_id
         self.url = url
         self.title = title
-        self.tags = tags
-        self.archive = archive if isinstance(archive, bool) else bool(archive)
-        self.starred = starred if isinstance(starred, bool) else bool(starred),
+        self.tags = self.handle_list(tags, split_on_commas=True)
+        self.is_archived = self.handle_bool(is_archived)
+        self.is_starred = self.handle_bool(is_starred)
         self.content = content
         self.language = language
         self.preview_picture = preview_picture
-        self.published_at = published_at
-        self.authors = authors
-        self.public = public if isinstance(public, bool) else bool(public)
+        self.published_at = self.handle_date(published_at, tzinfo=self._wb._tzinfo)
+        self.published_by = self.handle_list(published_by)
+        self.is_public = self.handle_bool(is_public)
         self.origin_url = origin_url
-
-        if self.published_at is not None:
-            if isinstance(self.published_at, datetime.datetime):
-                self.published_at = to_timestamp(
-                    published_at, tzinfo=self._wb._tzinfo if self._wb._tzinfo else None
-                )
+        self.annotations = annotations
+        self.created_at = self.handle_date(created_at, tzinfo=self._wb._tzinfo)
+        self.archived_at = self.handle_date(archived_at, tzinfo=self._wb._tzinfo)
+        self.starred_at = self.handle_date(starred_at, tzinfo=self._wb._tzinfo)
+        self.updated_at = self.handle_date(updated_at, tzinfo=self._wb._tzinfo)
+        self.domain_name = domain_name
+        self.given_url = given_url
+        self.hashed_given_url = hashed_given_url
+        self.hashed_url = hashed_url
+        self.reading_time = reading_time
 
         if isinstance(self.tags, str):
             if "," in self.tags:
@@ -265,48 +302,71 @@ class Entry:
             else:
                 self.tags = [self.tags]
 
-        if isinstance(self.authors, str):
-            if "," in self.authors:
-                self.authors = self.authors.split(",")
+        if isinstance(self.published_by, str):
+            if "," in self.published_by:
+                self.published_by = self.published_by.split(",")
             else:
-                self.authors = [self.authors]
+                self.published_by = [self.published_by]
 
     @classmethod
-    def from_dict(cls, entry_dict: dict):
-        return cls(**entry_dict)
+    def from_dict(cls, entry_dict: dict, wallabag_instance: Wallabag):
+        entry_dict["entry_id"] = entry_dict.pop("id")
+
+        for k in cls.PORPERTIES_TO_STRIP:
+            entry_dict.pop(k, None)
+
+        return cls(**entry_dict, wallabag_instance=wallabag_instance)
 
     def as_dict(self):
-        return dict(
-            entry_id=self.entry_id,
-            url=self.url,
-            title=self.title,
-            tags=self.tags,
-            archive=self.archive,
-            starred=self.starred,
-            content=self.content,
-            language=self.language,
-            preview_picture=self.preview_picture,
-            published_at=self.published_at,
-            authors=self.authors,
-            public=self.public,
-            origin_url=self.origin_url
-        )
+        return {}
+
+    @staticmethod
+    def handle_list(input_list, split_on_commas=False):
+        if input_list is not None:
+            if isinstance(input_list, str):
+                if split_on_commas and "," in input_list:
+                    return input_list.split(",")
+                else:
+                    return [input_list]
+            else:
+                # remove none values such as ""
+                return [i for i in input_list if i]
+
+    @staticmethod
+    def handle_date(input_date, tzinfo):
+        if input_date is not None:
+            if isinstance(input_date, datetime.datetime):
+                return to_timestamp(input_date, tzinfo=tzinfo)
+
+    @staticmethod
+    def handle_bool(input_bool):
+        if input_bool is not None:
+            if isinstance(input_bool, bool):
+                return input_bool
+            else:
+                return bool(input_bool)
 
     def __str__(self):
         return f"Entry<{self.entry_id}>"
 
+    def pprint(self):
+        for key in self.__slots__:
+            print(f"<Entry>.{key}: {getattr(self, key)}")
+
     def update(self):
-        self._wb.edit_entry(
+        result_dict = self._wb.edit_entry(
             self.entry_id,
             title=self.title,
             tags=self.tags,
-            archive=self.archive,
-            starred=self.starred,
+            archive=self.is_archived,
+            starred=self.is_starred,
             content=self.content,
             language=self.language,
             preview_picture=self.preview_picture,
             published_at=self.published_at,
-            authors=self.authors,
-            public=self.public,
+            authors=self.published_by,
+            public=self.is_public,
             origin_url=self.origin_url
         )
+
+        print(result_dict)
