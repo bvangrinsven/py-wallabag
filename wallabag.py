@@ -1,6 +1,6 @@
 import datetime
 import json
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 import pytz
 import requests
@@ -233,6 +233,22 @@ class Wallabag:
         response_dict = self.query(path, "patch", payload=payload)
 
         return response_dict
+
+    def exists(
+        self,
+        return_id: bool = None,
+        hashed_url: str = None,
+        hashed_urls: List[str] = None,
+    ):
+        path = f"/api/entries/exists.json"
+
+        payload = dict(
+            return_id=return_id,
+            hashed_url=hashed_url,
+            hashed_urls=hashed_urls
+        )
+
+        response_dict = self.query(path, "get", payload=payload)
 
 
 class Entry:
