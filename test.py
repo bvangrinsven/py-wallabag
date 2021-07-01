@@ -28,9 +28,12 @@ wb = Wallabag(
 # # entry.pprint()
 # sys.exit(1)
 
-entries = wb.get_entries(per_page=5)
-for entry in entries:
-    print(entry)
+# entries = wb.get_entries(per_page=5)
+# for entry in entries:
+#     print(entry)
+
+entry = wb.get_entry(13309898)
+entry.delete()
 
 
 time.sleep(3610)

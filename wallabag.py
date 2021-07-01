@@ -9,6 +9,21 @@ from requests.exceptions import BaseHTTPError
 from datetime_helpers import to_timestamp
 
 
+class WallabagError(Exception):
+    __slots__ = ('message',)
+
+    def __init__(self, message: str):
+        super().__init__()
+        self.message = message.capitalize()
+
+    def __str__(self) -> str:
+        return f"{self.message}"
+
+
+class NotFound(WallabagError):
+    __slots__ = ()
+
+
 class Wallabag:
     def __init__(self, host, username, password, client_id, client_secret, handle_access_token_refreshes=True):
         """Wallabag API interface
@@ -68,7 +83,11 @@ class Wallabag:
             raise ValueError(f"unknown http method \"{method}\"")
 
         if response.status_code != 200:
-            print(response.json())
+            message = response.json()["error"]["message"]
+            if response.status_code == 404:
+                raise NotFound(message)
+            else:
+                raise WallabagError(message)
         else:
             response_dict = response.json()
             return response_dict
@@ -233,6 +252,18 @@ class Wallabag:
         response_dict = self.query(path, "patch", payload=payload)
 
         return response_dict
+
+    def delete_entry(self, entry_id: int, expect: str = None):
+        path = f"/api/entries/{entry_id}.json"
+
+        if expect and expect not in ("id", "entry"):
+            raise ValueError("'expect' must be either 'id' or 'entry'")
+
+        payload = dict(expect=expect)
+
+        response_dict = self.query(path, "delete", payload=payload)
+
+        return Entry.from_dict(response_dict, wallabag_instance=self)
 
     def exists(
         self,
@@ -429,3 +460,6 @@ class Entry:
 
             if getattr(self, k) != getattr(remote_entry, k):
                 setattr(self, k, getattr(remote_entry, k))
+
+    def delete(self):
+        self._wb.delete_entry(self.entry_id)
