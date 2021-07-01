@@ -95,33 +95,58 @@ class Wallabag:
 
         self._access_token_expires_at = datetime.datetime.utcnow() + datetime.timedelta(0, response_dict["expires_in"])
 
-    def get_entries(self):
+    def get_entries(
+            self,
+            archive:  bool = None,
+            starred: bool = None,
+            sort: str = None,
+            order: str = None,
+            page: int = 1,
+            per_page: int = 30,
+            tags: Union[list, tuple] = None,
+            since: Union[int, datetime.datetime] = None,
+            public: bool = None,
+            detail: str = "metadata",  # we force it to "metadata" because the API default is "full" but just for backward compatibility
+    ):
         path = "/api/entries.json"
 
+        if order and order not in ("asc", "desc"):
+            raise ValueError("'order' must be either 'asc' or 'desc'")
+        if sort and sort not in ("created", "updated", "archived"):
+            raise ValueError("'sort' must be either 'created', 'updated' or 'archived'")
+        if detail and detail not in ("metadata", "full"):
+            raise ValueError("'detail' must be either 'metadata' or 'full'")
+
         payload = dict(
-            page=1,
-            perPage=1,
-            order="asc"
+            archive=archive,
+            starred=starred,
+            sort=sort,
+            order=order,
+            page=page,
+            perPage=per_page,
+            tags=None if not tags else ",".join(tags),
+            since=since,
+            public=public,
+            detail=detail
         )
 
         response_dict = self.query(path, "get", payload=payload)
 
-        # print(response_dict["_embedded"]["items"][0])
-        print(json.dumps(response_dict["_embedded"]["items"][0], indent=2))
+        return [Entry.from_dict(i, wallabag_instance=self) for i in response_dict["_embedded"]["items"]]
 
     def _build_entry_payload(
         self,
         title: Union[None, str] = None,
-        tags: Union[None, list] = None,
-        archive: Union[None, bool] = None,
-        starred: Union[None, bool] = None,
-        content: Union[None, str] = None,
-        language: Union[None, str] = None,
-        preview_picture: [None, str] = None,
+        tags: list = None,
+        archive: bool = None,
+        starred: bool = None,
+        content: str = None,
+        language: str = None,
+        preview_picture: str = None,
         published_at: Union[int, datetime.datetime] = None,
-        authors: Union[None, list] = None,
-        public: Union[None, bool] = None,
-        origin_url: Union[None, str] = None
+        authors: list = None,
+        public: bool = None,
+        origin_url: str = None
     ):
         if content is not None and title is None:
             raise ValueError("if `content` is provided, `title` must be non-empty")
@@ -152,6 +177,13 @@ class Wallabag:
 
         return payload
 
+    def get_entry(self, entry_id: int):
+        path = f"/api/entries/{entry_id}.json"
+
+        response_dict = self.query(path, "get")
+
+        return Entry.from_dict(response_dict, wallabag_instance=self)
+
     def save_entry(
         self,
         url: str,
@@ -176,8 +208,6 @@ class Wallabag:
 
         response_dict = self.query(path, "post", payload=payload)
 
-        import pprint
-        pprint.pprint(response_dict)
         return Entry.from_dict(response_dict, wallabag_instance=self)
 
     def edit_entry(
@@ -269,7 +299,7 @@ class Entry:
             given_url: Union[None, str] = None,
             hashed_given_url: Union[None, str] = None,
             hashed_url: Union[None, str] = None,
-            reading_time: Union[None, int] = None,
+            reading_time: Union[None, int] = None
     ):
         self._wb = wallabag_instance
         self.entry_id = entry_id
@@ -317,8 +347,12 @@ class Entry:
 
         return cls(**entry_dict, wallabag_instance=wallabag_instance)
 
+    @property
+    def entry_url(self):
+        return f"{self._wb._host}/view/{self.entry_id}"
+
     def as_dict(self):
-        return {}
+        return {k: getattr(self, k) for k in self.__slots__}
 
     @staticmethod
     def handle_list(input_list, split_on_commas=False):
@@ -353,7 +387,7 @@ class Entry:
         for key in self.__slots__:
             print(f"<Entry>.{key}: {getattr(self, key)}")
 
-    def update(self):
+    def update_remote(self):
         result_dict = self._wb.edit_entry(
             self.entry_id,
             title=self.title,
@@ -369,4 +403,13 @@ class Entry:
             origin_url=self.origin_url
         )
 
-        self = self.from_dict(result_dict, wallabag_instance=self._wb)
+        return self.from_dict(result_dict, wallabag_instance=self._wb)
+
+    def refresh(self):
+        remote_entry = self._wb.get_entry(self.entry_id)
+        for k in self.__slots__:
+            if k.startswith("_"):
+                continue
+
+            if getattr(self, k) != getattr(remote_entry, k):
+                setattr(self, k, getattr(remote_entry, k))

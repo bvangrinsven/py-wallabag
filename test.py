@@ -12,20 +12,25 @@ wb = Wallabag(
     client_secret="5l0mm1c6ggkc4o0swwwcokggwg4kw4cs8wkgoog00g8888wwwg"
 )
 
-entry: Entry = wb.save_entry(
-    url="https://www.fanpage.it/sport/calcio/la-uefa-dice-no-lallianz-arena-non-silluminera-con-i-colori-della-bandiera-arcobaleno/",
-    tags=["wallabag bot"],
-    published_at=datetime.datetime.now()
-)
-entry.pprint()
-entry.tags = ["lmao"]
-entry.update()
-print(entry.updated_at)
-# wb.edit_entry(13260773, starred=False)
-entry.pprint()
-sys.exit(1)
+# entry: Entry = wb.save_entry(
+#     url="https://www.fanpage.it/sport/calcio/la-uefa-dice-no-lallianz-arena-non-silluminera-con-i-colori-della-bandiera-arcobaleno/",
+#     tags=["wallabag bot"],
+#     published_at=datetime.datetime.now()
+# )
+# entry.pprint()
+# entry.tags = ["lmao"]
+# entry.update_remote()
+# input("")
+# entry.refresh()
+# print(f"starred: {entry.is_starred}")
+# # print(entry.updated_at)
+# # wb.edit_entry(13260773, starred=False)
+# # entry.pprint()
+# sys.exit(1)
 
-wb.get_entries()
+entries = wb.get_entries(per_page=5)
+for entry in entries:
+    print(entry)
 
 
 time.sleep(3610)
