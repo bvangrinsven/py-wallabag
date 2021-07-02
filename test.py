@@ -32,8 +32,9 @@ wb = Wallabag(
 # for entry in entries:
 #     print(entry)
 
-entry = wb.get_entry(13309898)
-entry.delete()
+entry = wb.get_entry(13310292)
+# entry.delete()
+entry.pprint()
 
 
 time.sleep(3610)
