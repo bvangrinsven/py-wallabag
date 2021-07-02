@@ -6,7 +6,7 @@ import pytz
 import requests
 from requests.exceptions import BaseHTTPError
 
-from datetime_helpers import to_timestamp
+from .datetime_helpers import to_timestamp
 
 
 class WallabagError(Exception):
@@ -327,7 +327,7 @@ class Entry:
             entry_id: int,
             url: str,
             title: Union[None, str] = None,
-            tags: Union[None, str, list] = None,
+            tags: Union[None, list] = None,
             is_archived: Union[None, bool] = None,
             is_starred: Union[None, bool] = None,
             content: Union[None, str] = None,
@@ -352,7 +352,7 @@ class Entry:
         self.entry_id = entry_id
         self.url = url
         self.title = title
-        self.tags = self.handle_list(tags, split_on_commas=True)
+        self.tags: List[dict] = self.handle_list(tags, split_on_commas=True)
         self.is_archived = self.handle_bool(is_archived)
         self.is_starred = self.handle_bool(is_starred)
         self.content = content
@@ -373,18 +373,6 @@ class Entry:
         self.hashed_url = hashed_url
         self.reading_time = reading_time
 
-        if isinstance(self.tags, str):
-            if "," in self.tags:
-                self.tags = self.tags.split(",")
-            else:
-                self.tags = [self.tags]
-
-        if isinstance(self.published_by, str):
-            if "," in self.published_by:
-                self.published_by = self.published_by.split(",")
-            else:
-                self.published_by = [self.published_by]
-
     @classmethod
     def from_dict(cls, entry_dict: dict, wallabag_instance: Wallabag):
         entry_dict["entry_id"] = entry_dict.pop("id")
@@ -397,6 +385,10 @@ class Entry:
     @property
     def entry_url(self):
         return f"{self._wb._host}/view/{self.entry_id}"
+
+    @property
+    def tags_list(self):
+        return [t["label"] for t in self.tags]
 
     def as_dict(self):
         return {k: getattr(self, k) for k in self.__slots__}
