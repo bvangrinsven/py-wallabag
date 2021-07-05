@@ -7,22 +7,8 @@ import requests
 from requests.exceptions import BaseHTTPError
 from dateutil import parser
 
+from .errors import WallabagError, NotFound
 from .datetime_helpers import to_timestamp
-
-
-class WallabagError(Exception):
-    __slots__ = ('message',)
-
-    def __init__(self, message: str):
-        super().__init__()
-        self.message = message.capitalize()
-
-    def __str__(self) -> str:
-        return f"{self.message}"
-
-
-class NotFound(WallabagError):
-    __slots__ = ()
 
 
 class Wallabag:

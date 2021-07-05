@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="py-wallabag",
-    version="0.0.5",
+    version="0.0.8",
     description="Python wrapper for the Wallabag Rest API",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -27,7 +27,7 @@ setup(
     ],
     packages=["wallabag"],
     include_package_data=True,
-    install_requires=["requests", "pytz"],
+    install_requires=["requests", "pytz", "python-dateutil"],
     # entry_points={
     #     "console_scripts": [
     #         "realpython=reader.__main__:main",
